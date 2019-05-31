@@ -19,13 +19,23 @@ Lancer la simulation ANTARES avec les paramètres suivants:
 
 aller dans le dossier output qui contient les sorties de la simulation ANTARES standard ainsi que de nouvelles informations.
 
-copy area* area.txt
+exéctuer example.bat:
 
-copy interco* interco.txt
+​	mkdir lp
 
-python get_names_py > mps.txt
+​	copy area* area.txt
 
-créer le dossier lp
+​	copy interco* interco.txt
 
-Exécuter le programme lp_namer.exe qui va générer le code à envoyer 
+​	python get_names_py > mps.txt
+
+​	..\\..\\..\build\\RelWithDebInfo\lp_namer.exe .
+
+Lancer la résolution
+
+benderssequential . : benders en séquentiel
+
+mpiexec -n 4 bendersmpi . : benders en parallèle
+
+merge_mps . : fusion des problèmes et résolution en frontal
 
