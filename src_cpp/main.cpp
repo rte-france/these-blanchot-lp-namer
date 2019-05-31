@@ -17,14 +17,14 @@ std::string get_name(std::string const & path) {
 }
 
 int main(int argc, char** argv) {
-	//if (argc < 2) {
-	//	std::cout << "usage: <exe> <Xpansion study output>" << std::endl;
-	//	std::exit(0);
-	//}
-	//std::string const root(argv[1]);
+	if (argc < 2) {
+		std::cout << "usage: <exe> <Xpansion study output>" << std::endl;
+		std::exit(0);
+	}
+	std::string const root(argv[1]);
 	//std::string const root("D:\\STAGES\\Enzo\\test_case_expansion\\output\\20190123-1546eco");
 	//std::string const root("D:\\STAGES\\Enzo\\test_case_expansion\\output\\20190123-1635eco-2");
-	std::string const root("D:\\boucle\\1- Base case\\output\\20190214-1427eco");
+	//std::string const root("D:\\boucle\\1- Base case\\output\\20190214-1427eco");
 
 	//std::string const root("D:\\boucle\\2- Solar PV and wind only - loss\\output\\20190124-1240eco");
 	//std::string const root("D:\\boucle\\test_case_expansion\\output\\20190125-1046eco");
