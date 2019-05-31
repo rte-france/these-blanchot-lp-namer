@@ -1,0 +1,1 @@
+D:/repo/antares_v6.1rc1/src/solver/Release/antares-6.1-solver.exe ..\..\SmallTestSixCandidates_fast_1
