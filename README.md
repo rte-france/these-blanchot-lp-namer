@@ -2,15 +2,21 @@
 
 
 
-## 1. Pré-requis
+# Pré-requis : dépôt en lien avec le code existant
 
 Faire un build de la branche dev_xprs_win du dépôt https://devin-source.rte-france.com/antares/antares-historic.git
 
 Faire un build de la branche master du dépôt https://devin-source.rte-france.com/antares/antares-xpansion-poc.git
 
+Faire un build de la branche master du dépôt 
+
+## Description du workflow proposé dans la feuille de route
 
 
-## 2. Déroulement
+
+
+
+## Exemple d'exécution
 
 Lancer la simulation ANTARES avec les paramètres suivants:
 
@@ -27,7 +33,7 @@ exéctuer example.bat:
 
 ​	copy interco* interco.txt
 
-​	python get_names_py > mps.txt
+​	python get_names.py > mps.txt
 
 ​	..\\..\\..\build\\RelWithDebInfo\lp_namer.exe .
 
