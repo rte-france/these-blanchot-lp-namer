@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
 				buffer >> pays_or;
 				buffer >> pays_ex;
 
-				Candidates::intercos_map.push_back({ interco, pays_or, pays_ex });
+				Candidates::intercos_map.push_back(std::make_tuple(interco, pays_or, pays_ex));
 			}
 		}
 	}
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
 		for (auto const & kvp : Candidates::intercos_map) {
 			std::string const & pays_or(Candidates::area_names[std::get<1>(kvp)]);
 			std::string const & pays_ex(Candidates::area_names[std::get<2>(kvp)]);
-			Candidates::or_ex_id[{pays_or, pays_ex}] = std::get<0>(kvp);
+			Candidates::or_ex_id[std::make_tuple(pays_or, pays_ex)] = std::get<0>(kvp);
 		}
 	}
 
@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
 		obj_interco[i] = interco.second.obj();
 		lb_interco[i] = interco.second.lb();
 		ub_interco[i] = interco.second.ub();
-		int interco_id = Candidates::or_ex_id.find({ interco.second.str("linkor") , interco.second.str("linkex") })->second;
+		int interco_id = Candidates::or_ex_id.find(std::make_tuple(interco.second.str("linkor") , interco.second.str("linkex")))->second;
 		//std::cout << i << " : " << interco.second.paysor() << " - " << interco.second.paysex() << std::endl;
 		std::stringstream buffer;
 		//buffer << "INVEST_INTERCO_" << interco.second.str("linkor") << "_" << interco.second.str("linkex");

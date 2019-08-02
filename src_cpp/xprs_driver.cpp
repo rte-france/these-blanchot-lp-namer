@@ -55,7 +55,7 @@ void errormsg(XPRSprob & probg, const char *sSubName, int nLineNo, int nErrCode)
 	/* Free memory, close files and exit */
 	XPRSdestroyprob(probg);
 	XPRSfree();
-	exit(nErrCode);
+	std::exit(nErrCode);
 }
 
 
