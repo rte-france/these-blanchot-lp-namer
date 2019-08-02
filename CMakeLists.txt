@@ -23,7 +23,7 @@ ELSE()
 #		SET ( CMAKE_BUILD_TYPE "RELEASE"     )
 #	ENDIF( WITH_DEBUG )
 #	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DNDEBUG")
-#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -pedantic -fmessage-length=0 -fPIC" )
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC" )
 #	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-conversion -Wno-sign-compare")
 #	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-strict-aliasing -Wno-unused-parameter")
 ENDIF( WIN32 )
@@ -41,6 +41,9 @@ FILE(
 	./src_cpp/*.hxx
 	)
 ADD_EXECUTABLE(lp_namer ${LP_NAMER_FILES})
-
-TARGET_LINK_LIBRARIES(lp_namer $ENV{XPRESSDIR}/lib/xprs.lib $ENV{XPRESSDIR}/lib/xprb.lib)
+IF(WIN32)
+	TARGET_LINK_LIBRARIES(lp_namer $ENV{XPRESSDIR}/lib/xprb.lib $ENV{XPRESSDIR}/lib/xprs.lib )
+ELSE(WIN32)
+        TARGET_LINK_LIBRARIES(lp_namer $ENV{XPRESSDIR}/lib/libxprb.so $ENV{XPRESSDIR}/lib/libxprs.so)
+ENDIF(WIN32)
 
