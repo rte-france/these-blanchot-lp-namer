@@ -53,6 +53,7 @@ struct Candidates : public std::map<std::string, Candidate> {
 	//Candidates(std::vector<std::vector<std::string>>  const & datas);
 
 	void treat(std::string const & root, std::vector<std::string> const &, std::map< std::pair<std::string, std::string>, int>& couplings);
+	void treatloop(std::string const & root, std::map< std::pair<std::string, std::string>, int>& couplings);
 
 
 };

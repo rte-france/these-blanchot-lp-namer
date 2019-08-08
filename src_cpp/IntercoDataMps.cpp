@@ -138,6 +138,8 @@ Candidates::Candidates(std::string  const & ini_file) {
 	//}
 	////area_names.assign(size(), )
 }
+
+
 void Candidates::treat(std::string const & root, std::vector<std::string> const & mps, std::map< std::pair<std::string, std::string>, int> & couplings) {
 	std::map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex;
 	std::string const study_path = root + PATH_SEPARATOR + ".." + PATH_SEPARATOR + "..";
@@ -369,3 +371,13 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 	XPRSdestroyprob(xpr);
 	std::cout << "lp_name : " << lp_name <<" done" << std::endl;
 }
+
+
+void Candidates::treatloop(std::string const & root, std::map< std::pair<std::string, std::string>, int>& couplings) {
+	int n_mps(0);
+	for (auto const & mps : Candidates::MPS_LIST) {
+		treat(root, mps, couplings);
+		n_mps += 1;
+	}
+}
+
