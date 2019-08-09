@@ -38,13 +38,14 @@ std::string get_name(std::string const & path) {
 
 
 /**
- * \fn Candidates initializedCandidates(string rootPath)
+ * \fn void initializedCandidates(string rootPath, Candidates & candidates)
  * \brief Initialize the candidates structure with input data located in the directory given in argument
  *
  * \param rootPath String corresponding to the path where are located input data
- * \return an instantiation of candidates
+ * \param candidates Structure which is initialized
+ * \return void
  */
-Candidates initializedCandidates(std::string rootPath) {
+void initializedCandidates(std::string rootPath, Candidates & candidates) {
 	std::string line;
 
 	// Get all mandatory path
@@ -82,9 +83,9 @@ Candidates initializedCandidates(std::string rootPath) {
 	while (std::getline(interco_filestream, line)) {
 		std::stringstream buffer(line);
 		if (!line.empty() && line.front() != '#') {
-			int interco;
-			int pays_or;
-			int pays_ex;
+			int interco; /*!< Number of the interconnection */
+			int pays_or; /*!< Number of the origin country */
+			int pays_ex; /*!< Number of the destination country */
 
 			buffer >> interco;
 			buffer >> pays_or;
@@ -112,15 +113,91 @@ Candidates initializedCandidates(std::string rootPath) {
 		Candidates::or_ex_id[std::make_tuple(pays_or, pays_ex)] = std::get<0>(kvp);
 	}
 
-	Candidates candidates(candidates_file_name);
-	return candidates;
+	candidates.getCandidatesFromFile(candidates_file_name);
+}
+
+
+
+
+/**
+ * \fn Candidates masterGeneration()
+ * \brief Generate the master ob the optimization problem
+ *
+ * \param rootPath String corresponding to the path where are located input data
+ * \param candidates Structure which contains the list of candidates
+ * \param couplings map pairs and integer which give the correspondence between optim variable and antares variable
+ * \return void
+ */
+void masterGeneration(std::string rootPath, Candidates candidates, std::map< std::pair<std::string, std::string>, int> couplings) {
+	XPRSprob master;
+		XPRScreateprob(&master);
+		XPRSsetcbmessage(master, optimizermsg, NULL);
+		XPRSsetintcontrol(master, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_FULL_OUTPUT);
+		XPRSloadlp(master, "master", 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		int status;
+
+		int ninterco = candidates.size();
+		std::vector<int> mstart(ninterco + 1, 0);
+		std::vector<double> obj_interco(ninterco, 0);
+		std::vector<double> lb_interco(ninterco, +XPRS_MINUSINFINITY);
+		std::vector<double> ub_interco(ninterco, +XPRS_PLUSINFINITY);
+		std::vector<std::string> interco_names(ninterco);
+		int i(0);
+		for (auto const & interco : candidates) {
+			obj_interco[i] = interco.second.obj();
+			lb_interco[i] = interco.second.lb();
+			ub_interco[i] = interco.second.ub();
+			int interco_id = Candidates::or_ex_id.find(std::make_tuple(interco.second.str("linkor") , interco.second.str("linkex")))->second;
+			std::stringstream buffer;
+			buffer << "INVEST_INTERCO_" << interco_id;
+			interco_names[i] = buffer.str();
+			++i;
+		}
+		status = XPRSaddcols(master, ninterco, 0, obj_interco.data(), mstart.data(), NULL, NULL, lb_interco.data(), ub_interco.data());
+		if (status) {
+			std::cout << "master XPRSaddcols error" << std::endl;
+			std::exit(0);
+		}
+		i = 0;
+		for (auto const & name : interco_names) {
+			status = XPRSaddnames(master, 2, interco_names[i].c_str(), i, i);
+			if (status) {
+				std::cout << "master XPRSaddname error" << std::endl;
+				std::exit(0);
+			}
+			++i;
+		}
+		std::string const lp_name = "master";
+		XPRSwriteprob(master, (rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".lp").c_str(), "l");
+		XPRSwriteprob(master, (rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".mps").c_str(), "");
+		XPRSdestroyprob(master);
+		XPRSfree();
+		std::map<std::string, std::map<std::string, int> > output;
+		for (auto const & coupling : couplings) {
+			output[get_name(coupling.first.second)][coupling.first.first] = coupling.second;
+		}
+		i = 0;
+		for (auto const & name : interco_names) {
+			output["master"][name] = i;
+			++i;
+		}
+		std::ofstream coupling_file((rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + "structure.txt").c_str());
+		for (auto const & mps : output) {
+			for (auto const & pmax : mps.second) {
+				coupling_file << std::setw(50) << mps.first;
+				coupling_file << std::setw(50) << pmax.first;
+				coupling_file << std::setw(10) << pmax.second;
+				coupling_file << std::endl;
+			}
+		}
+		coupling_file.close();
 }
 
 
 
 /**
  * \fn int main (void)
- * \brief Main programm
+ * \brief Main program
  *
  * \param  argc An integer argument count of the command line arguments
  * \param  argv Path to input data which is the 1st argument vector of the command line argument.
@@ -135,14 +212,14 @@ int main(int argc, char** argv) {
 
 	// Instantiation of candidates
 	std::string const root(argv[1]);
-	Candidates candidates = initializedCandidates(root);
+	Candidates candidates;
+	initializedCandidates(root, candidates);
 
 
 	std::map< std::pair<std::string, std::string>, int> couplings;
 	XPRSinit("");
 	candidates.treatloop(root, couplings);
-
-
+	masterGeneration(root, candidates, couplings);
 
 	return 0;
 }

@@ -89,58 +89,21 @@ double Candidate::ub() const {
 //}
 #include "INIReader.h"
 Candidates::Candidates(std::string  const & ini_file) {
-	INIReader reader(ini_file.c_str());
-	std::stringstream ss;
-	std::set<std::string> sections = reader.Sections();
-	for (auto const & candidate : sections) {
-		std::cout << "-------------------------------------------" << std::endl;
-		for (auto const & str : Candidates::str_fields) {
-			std::string val = reader.Get(candidate, str, "NA");
-			if (val != "NA") {
-				std::cout << candidate << " : " << str << " = " << val << std::endl;
-				if (str == "link") {
-					size_t i = val.find(" - ");
-					if (i != std::string::npos) {
-						std::string s1 = val.substr(0, i);
-						std::string s2 = val.substr(i+3, val.size());
-						std::cout << s1 << " and " << s2 << std::endl;
-						(*this)[candidate]._str["linkor"] = s1;
-						(*this)[candidate]._str["linkex"] = s2;
-					}
-				}
-				else {
-					(*this)[candidate]._str[str] = val;
-				}
-			}
-		}		
-		for (auto const & str : Candidates::dbl_fields) {
-			std::string val = reader.Get(candidate, str, "NA");
-			if (val != "NA") {
-				//std::cout << candidate << " : " << str << " = " << val << std::endl;
-				std::stringstream buffer(val);
-				double d_val(0);
-				buffer >> d_val;
-				(*this)[candidate]._dbl[str] = d_val;
-			}
-		}
-	}
-	std::cout << "-------------------------------------------" << std::endl;
-	//for (auto const & data : datas) {
-	//	std::string const & id(data[0]);
-	//	std::string const & key(data[1]);
-	//	std::stringstream value(data[2]);
-	//	if (Candidates::str_fields.find(key) != Candidates::str_fields.end()) {
-	//		(*this)[id]._str[key] = value.str();
-	//	}
-	//	else {
-	//		value >> (*this)[id]._dbl[key];
-	//	}
-	//}
-	////area_names.assign(size(), )
+	getCandidatesFromFile(ini_file);
 }
 
-
-void Candidates::treat(std::string const & root, std::vector<std::string> const & mps, std::map< std::pair<std::string, std::string>, int> & couplings) {
+/**
+ * \fn treat
+ * \brief
+ *
+ * \param root
+ * \param mps
+ * \param couplings
+ * \return void
+ */
+void Candidates::treat(std::string const & root,
+		std::vector<std::string> const & mps,
+		std::map< std::pair<std::string, std::string>, int> & couplings) {
 	std::map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex;
 	std::string const study_path = root + PATH_SEPARATOR + ".." + PATH_SEPARATOR + "..";
 	for (auto & kvp : *this) {
@@ -149,7 +112,6 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 		std::string const & paysor(interco.str("linkor"));
 		std::string const & paysex(interco.str("linkex"));
 
-		//std::cout << paysor<<" --- "<<paysex<< std::endl;
 		if (key_paysor_paysex.find({ paysor, paysex }) != key_paysor_paysex.end()) {
 			std::cout << "duplicate interco : " << paysor << " - " << paysex << std::endl;
 			std::exit(0);
@@ -161,11 +123,7 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 		key_paysor_paysex[{paysor, paysex }] = &kvp.second;
 
 	}
-	//std::exit(0);
 	XPRSprob xpr = NULL;
-	//std::cout << std::setw(45) << mps[0];
-	//std::cout << std::setw(45) << mps[1];
-	//std::cout << std::setw(45) << mps[2] << std::endl;
 
 	std::string const mps_name(root + PATH_SEPARATOR + mps[0]);
 	std::string const var_name(root + PATH_SEPARATOR + mps[1]);
@@ -244,9 +202,6 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 						interco_id[{pays, interco }] = interco_id.size();
 					}
 				}
-				else {
-					//std::cout << "Not candidate : " << paysor << " - " << paysex << std::endl;
-				}
 			}
 			var.push_back(name.str());
 			vsize += name.str().size() + 1;
@@ -255,7 +210,6 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 	}
 	XPRScreateprob(&xpr);
 	XPRSsetintcontrol(xpr, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_NO_OUTPUT);
-	//XPRSsetintcontrol(xpr, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_FULL_OUTPUT);
 	XPRSsetcbmessage(xpr, optimizermsg, NULL);
 	XPRSreadprob(xpr, mps_name.c_str(), "");
 
@@ -297,6 +251,7 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 	for (auto const & id : interco_data) {
 		indexes.push_back(id.first);
 	}
+
 	// remove bounds on intero
 	XPRSchgbounds(xpr, nintero_pdt, indexes.data(), lb_char.data(), neginf.data());
 	XPRSchgbounds(xpr, nintero_pdt, indexes.data(), ub_char.data(), posinf.data());
@@ -318,7 +273,6 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 		int pays_ex = std::get<2>(intercos_map[interco_i]);
 		int pays = interco.first[0];
 		buffer << "INVEST_INTERCO_" << interco_i;
-		//buffer << "INVEST_INTERCO_" << area_names[pays == pays_or ? pays_or : pays_ex] << "_" << area_names[pays == pays_or ? pays_ex : pays_or];
 		status = XPRSaddnames(xpr, 2, buffer.str().c_str(), ncols + interco.second, ncols + interco.second);
 		if (status) {
 			std::cout << "interco XPRSaddnames error" << std::endl;
@@ -331,6 +285,7 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 	std::vector<char> rowtype;
 	std::vector<double> rhs;
 	std::vector<int> rstart;
+
 	// create plower and upper constraint
 	for (auto const & kvp : interco_data) {
 		int const i_interco_pmax(interco_id.find({ kvp.second[0], kvp.second[1] })->second);
@@ -340,7 +295,6 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 		std::string const & paysex(Candidates::area_names[std::get<2>(intercos_map[kvp.second[1]])]);
 
 		Candidate & candidate(*(key_paysor_paysex.find({ paysor, paysex })->second));
-		// p[t] - alpha.pMax <= 0
 		rstart.push_back(dmatval.size());
 		rhs.push_back(0);
 		rowtype.push_back('L');
@@ -366,13 +320,21 @@ void Candidates::treat(std::string const & root, std::vector<std::string> const 
 		std::exit(0);
 	}
 	std::string const lp_name = mps[0].substr(0, mps[0].size() - 4);
-	//XPRSwriteprob(xpr, (root + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".lp").c_str(), "l");
 	XPRSwriteprob(xpr, (root + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".mps").c_str(), "");
 	XPRSdestroyprob(xpr);
 	std::cout << "lp_name : " << lp_name <<" done" << std::endl;
 }
 
 
+/**
+ * \fn
+ * \brief
+ *
+ * \param
+ * \param
+ * \param
+ * \return void
+ */
 void Candidates::treatloop(std::string const & root, std::map< std::pair<std::string, std::string>, int>& couplings) {
 	int n_mps(0);
 	for (auto const & mps : Candidates::MPS_LIST) {
@@ -381,3 +343,48 @@ void Candidates::treatloop(std::string const & root, std::map< std::pair<std::st
 	}
 }
 
+
+/**
+ * \fn
+ * \brief
+ *
+ * \param
+ * \return void
+ */
+void Candidates::getCandidatesFromFile(std::string  const & dataPath) {
+	INIReader reader(dataPath.c_str());
+		std::stringstream ss;
+		std::set<std::string> sections = reader.Sections();
+		for (auto const & candidate : sections) {
+			std::cout << "-------------------------------------------" << std::endl;
+			for (auto const & str : Candidates::str_fields) {
+				std::string val = reader.Get(candidate, str, "NA");
+				if (val != "NA") {
+					std::cout << candidate << " : " << str << " = " << val << std::endl;
+					if (str == "link") {
+						size_t i = val.find(" - ");
+						if (i != std::string::npos) {
+							std::string s1 = val.substr(0, i);
+							std::string s2 = val.substr(i+3, val.size());
+							std::cout << s1 << " and " << s2 << std::endl;
+							(*this)[candidate]._str["linkor"] = s1;
+							(*this)[candidate]._str["linkex"] = s2;
+						}
+					}
+					else {
+						(*this)[candidate]._str[str] = val;
+					}
+				}
+			}
+			for (auto const & str : Candidates::dbl_fields) {
+				std::string val = reader.Get(candidate, str, "NA");
+				if (val != "NA") {
+					std::stringstream buffer(val);
+					double d_val(0);
+					buffer >> d_val;
+					(*this)[candidate]._dbl[str] = d_val;
+				}
+			}
+		}
+		std::cout << "-------------------------------------------" << std::endl;
+}
