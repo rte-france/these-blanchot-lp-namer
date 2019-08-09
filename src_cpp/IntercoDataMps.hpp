@@ -1,4 +1,5 @@
 #pragma once
+#include "xprs_driver.hpp"
 #include "common.hpp"
 
 
@@ -8,21 +9,44 @@
  *
  */
 struct Candidate {
-	std::map<std::string, std::string> _str;
+	std::map<std::string, std::string> _str; /*!<  map of string , string associated type of link (origin, destination) and the country */
 	std::map<std::string, double> _dbl;
 
 	std::vector<double> _profile;
 
 	int _id;
 
+	/**
+	 * \fn dbl(std::string const & key)
+	 * \brief Get the element of _dbl associated to the key "key" or 0.0 if the key doe not exist
+	 *
+	 * \param key String corresponding to the key
+	 * \return string
+	 */
 	double dbl(std::string const & key)const {
 		auto const it(_dbl.find(key));
 		return it == _dbl.end() ? 0.0 : it->second;
 	}
+
+	/**
+	 * \fn str(std::string const & key)
+	 * \brief Get the element of _str associated to the key "key"
+	 *
+	 * \param key String corresponding to the key
+	 * \return string
+	 */
 	std::string str(std::string const & key)const {
 		auto const it(_str.find(key));
 		return it->second;
 	}
+
+	/**
+	 * \fn has(std::string const & key)
+	 * \brief Check if the key "key" is present in _str
+	 *
+	 * \param key String corresponding to the key
+	 * \return bool
+	 */
 	bool has(std::string const & key)const {
 		auto const it(_str.find(key));
 		return it != _str.end();
@@ -62,6 +86,26 @@ struct Candidates : public std::map<std::string, Candidate> {
 	void treat(std::string const & root, std::vector<std::string> const &, std::map< std::pair<std::string, std::string>, int>& couplings);
 	void treatloop(std::string const & root, std::map< std::pair<std::string, std::string>, int>& couplings);
 	void getCandidatesFromFile(std::string  const & dataPath);
+	void getListOfIntercoCandidates(map<std::pair<std::string, std::string>, Candidate *> & key_paysor_paysex);
+	void readCstrfiles(std::string const filePath, std::list<std::string> & list, size_t & sizeList);
+	void readVarfiles(std::string const filePath,
+			          std::list<std::string> & list,
+					  size_t & sizeList,
+					  std::map<int, std::vector<int> > & interco_data ,
+					  std::map<std::vector<int>, int> & interco_id,
+					  map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex);
+	void createMpsFileAndFillCouplings(std::string const mps_name,
+									   std::list<std::string> var,
+									   size_t vsize,
+									   std::list<std::string> cstr,
+									   size_t csize,
+									   std::map<int, std::vector<int> > interco_data,
+									   std::map<std::vector<int>, int> interco_id,
+									   std::map< std::pair<std::string, std::string>, int> & couplings,
+									   map<std::pair<std::string, std::string>, Candidate *>  key_paysor_paysex,
+									   std::string study_path,
+									   std::string const lp_mps_name);
+
 
 };
 

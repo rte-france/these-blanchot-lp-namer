@@ -120,7 +120,7 @@ void initializedCandidates(std::string rootPath, Candidates & candidates) {
 
 
 /**
- * \fn Candidates masterGeneration()
+ * \fn void masterGeneration()
  * \brief Generate the master ob the optimization problem
  *
  * \param rootPath String corresponding to the path where are located input data
