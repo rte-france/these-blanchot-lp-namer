@@ -12,6 +12,9 @@ std::vector<std::tuple<int, int, int> > Candidates::intercos_map = {
 //std::vector<std::vector<std::string>> Candidates::candidates_map = {
 //#include "candidates.txt"
 //};
+
+std::map<int, std::string> Candidates::id_name = std::map<int, std::string>();
+
 std::map<std::tuple<std::string, std::string>, int> Candidates::or_ex_id = std::map<std::tuple<std::string, std::string>, int>();
 std::set<std::string> Candidates::str_fields = std::set<std::string>({
 	"name",
@@ -114,7 +117,6 @@ void Candidates::getListOfIntercoCandidates(map<std::pair<std::string, std::stri
 			std::cout << "reverse interco already defined : " << paysex << " - " << paysor << std::endl;
 			std::exit(0);
 		}
-
 		key_paysor_paysex[{paysor, paysex }] = &pairNameCandidate.second;
 	}
 }
@@ -276,6 +278,9 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 	}
 
 	int ninterco_pdt = interco_data.size();
+
+	int status;
+#ifdef __ADD_NAMES__
 	std::vector<char> vnames(vsize, '\0');
 	int iname(0);
 	for (auto const & name : var) {
@@ -283,11 +288,12 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 			vnames[iname + ichar] = name[ichar];
 		iname += name.size() + 1;
 	}
-	int status = XPRSaddnames(xpr, 2, vnames.data(), 0, ncols - 1);
+	status = XPRSaddnames(xpr, 2, vnames.data(), 0, ncols - 1);
 	if (status) {
-		std::cout << "XPRSaddnames error" << std::endl;
+		std::cout << "XPRSaddnames error l."<<__LINE__ << std::endl;
 		std::exit(0);
 	}
+#endif
 
 	std::vector<double> lb(ncols);
 	std::vector<double> ub(ncols);
@@ -322,13 +328,16 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 		int pays_or = std::get<1>(intercos_map[interco_i]);
 		int pays_ex = std::get<2>(intercos_map[interco_i]);
 		int pays = interco.first[0];
-		buffer << "INVEST_INTERCO_" << interco_i;
-		//buffer << "INVEST_INTERCO_" << area_names[pays == pays_or ? pays_or : pays_ex] << "_" << area_names[pays == pays_or ? pays_ex : pays_or];
+		//buffer << "INVEST_INTERCO_" << interco_i;
+		buffer << id_name.find(interco_i)->second;
+		
+#ifdef __ADD_NAMES__
 		status = XPRSaddnames(xpr, 2, buffer.str().c_str(), ncols + interco.second, ncols + interco.second);
 		if (status) {
-			std::cout << "interco XPRSaddnames error" << std::endl;
+			std::cout << "XPRSaddnames error l." << __LINE__ << std::endl;
 			std::exit(0);
 		}
+#endif
 		couplings[{buffer.str(), mps_name}] = interco.second + ncols;
 	}
 
@@ -368,7 +377,7 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 	rstart.push_back(dmatval.size());
 	status = XPRSaddrows(xpr, n_row_interco, n_coeff_interco, rowtype.data(), rhs.data(), NULL, rstart.data(), colind.data(), dmatval.data());
 	if (status) {
-		std::cout << "interco XPRSaddnames error" << std::endl;
+		std::cout << "XPRSaddrows error l." << __LINE__ << std::endl;
 		std::exit(0);
 	}
 
@@ -466,7 +475,7 @@ void Candidates::getCandidatesFromFile(std::string  const & dataPath) {
 							std::string s2 = val.substr(i+3, val.size());
 							std::cout << s1 << " and " << s2 << std::endl;
 							(*this)[candidateName]._str["linkor"] = s1;
-							(*this)[candidateName]._str["linkex"] = s2;
+							(*this)[candidateName]._str["linkex"] = s2;							
 						}
 					}
 					else {
@@ -482,6 +491,15 @@ void Candidates::getCandidatesFromFile(std::string  const & dataPath) {
 					buffer >> d_val;
 					(*this)[candidateName]._dbl[str] = d_val;
 				}
+			}
+
+			auto it = or_ex_id.find({ (*this)[candidateName]._str["linkor"], (*this)[candidateName]._str["linkex"] });
+			if (it == or_ex_id.end()) {
+				std::cout << "cannot link candidate to interco id" << std::endl;
+			}
+			else {
+				id_name[it->second] = (*this)[candidateName]._str["name"];
+				std::cout << "index is " << it->second << " and name is " << id_name[it->second] << std::endl;
 			}
 		}
 		std::cout << "-------------------------------------------" << std::endl;

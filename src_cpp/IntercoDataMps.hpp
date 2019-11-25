@@ -72,6 +72,8 @@ struct Candidates : public std::map<std::string, Candidate> {
 
 	static std::map<std::tuple<std::string, std::string>, int> or_ex_id; /*!< map of tuple < origin country, destination country> associated to the int id of the interconnection */
 
+	static std::map<int, std::string> id_name; /*!< id interco --> name of candidate in candidates.ini */
+
 	static std::set<std::string> str_fields;
 	static std::set<std::string> dbl_fields;
 	
