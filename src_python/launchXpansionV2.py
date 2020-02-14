@@ -83,6 +83,7 @@ class XpansionConfig:
         self.MERGE_MPS = "merge_mps"
         self.MPS_TXT = "mps.txt"
         self.BENDERS_MPI = "bendersmpi"
+        self.BENDERS_SEQUENTIAL = "benderssequential"
         self.LP_NAMER = "lp_namer"
 
         self.parser = argparse.ArgumentParser()
@@ -130,11 +131,13 @@ class XpansionDriver:
         return os.path.join(self.args.installDir, exe)
 
     def solver_cmd(self, solver):
-        assert solver in [self.config.MERGE_MPS, self.config.BENDERS_MPI]
+        assert solver in [self.config.MERGE_MPS, self.config.BENDERS_MPI, self.config.BENDERS_SEQUENTIAL]
         if solver == self.config.MERGE_MPS:
             return [self.exe_path(solver), self.config.OPTIONS_TXT]
         elif solver == self.config.BENDERS_MPI:
             return [self.config.MPI_LAUNCHER, self.config.MPI_N, '1', self.exe_path(solver), self.config.OPTIONS_TXT]
+        elif solver == self.config.BENDERS_SEQUENTIAL:
+            return [self.exe_path(solver), self.config.OPTIONS_TXT]
 
     def antares(self):
         return os.path.join(self.args.installDir, self.config.ANTARES)
@@ -169,6 +172,17 @@ class XpansionDriver:
         ini_file.read(self.general_data())
         return float(ini_file['general']['nbyears'])
 
+    def check_candidates(self):
+        ini_file = configparser.ConfigParser()
+        ini_file.read(self.candidates())
+        # check that name does not have space
+        for each_section in ini_file.sections():
+
+            name = ini_file[each_section]['name'].strip()
+            if ' ' in name:
+                print('Error candidates name should not contain space, found in ', name)
+                sys.exit(0)
+
     def pre_antares(self):
         ini_file = configparser.ConfigParser()
         ini_file.read(self.general_data())
@@ -176,8 +190,9 @@ class XpansionDriver:
         ini_file[self.config.OPTIMIZATION][self.config.EXPORTSTRUCTURE] = "true"
         ini_file[self.config.OPTIMIZATION][self.config.TRACE] = "false"
         ini_file[self.config.OPTIMIZATION][self.config.USEXPRS] = "false"
-        ini_file[self.config.OPTIMIZATION][self.config.INBASIS] = "0"
-        ini_file[self.config.OPTIMIZATION][self.config.OUTBASIS] = "0"
+        ini_file.remove_option(self.config.OPTIMIZATION, self.config.USEXPRS)
+        ini_file.remove_option(self.config.OPTIMIZATION, self.config.INBASIS)
+        ini_file.remove_option(self.config.OPTIMIZATION, self.config.OUTBASIS)
         if self.is_accurate():
             ini_file['general']['mode'] = 'expansion'
             ini_file['other preferences']['unit-commitment-mode'] = 'accurate'
@@ -195,6 +210,8 @@ class XpansionDriver:
             ini_file.write(out_file)
 
     def launch_antares(self):
+        # if not os.path.isdir(driver.antares_output()):
+        #     os.mkdir(driver.antares_output(), )
         old_output = os.listdir(driver.antares_output())
         # print([self.antares(), self.data_dir()])
         with open(self.antares() + '.log', 'w') as output_file:
@@ -229,7 +246,7 @@ class XpansionDriver:
         return lp_path
 
     def launch_optimization(self, lp_path, solver):
-
+        old_cwd = os.getcwd()
         os.chdir(lp_path)
         print('Current directory is now : ', os.getcwd())
         print('Launching {}, logs will be saved to {}.log'.format(solver, os.path.join(os.getcwd(), solver)))
@@ -238,13 +255,15 @@ class XpansionDriver:
             subprocess.call(self.solver_cmd(solver), shell=True,
                             stdout=output_file,
                             stderr=output_file)
+        os.chdir(old_cwd)
 
     def set_slave_weight(self, output_path):
         # computing the weight of slaves
         options_values = self.config.options_default
         options_values["SLAVE_WEIGHT_VALUE"] = str(driver.nb_years())
+        options_values["GAP"] = 1
         print('Number of years is {}, setting SLAVE_WEIGHT_VALUE to {} '.format(driver.nb_years(),
-                                                                               options_values["SLAVE_WEIGHT_VALUE"]))
+                                                                                options_values["SLAVE_WEIGHT_VALUE"]))
         # generate options file for the solver
         with open(os.path.join(output_path, 'lp', self.config.OPTIONS_TXT), 'w') as options_file:
             options_file.writelines(["%30s%30s\n" % (kvp[0], kvp[1]) for kvp in options_values.items()])
@@ -265,11 +284,9 @@ class XpansionDriver:
 
 config = XpansionConfig()
 driver = XpansionDriver(config)
+driver.check_candidates()
 
 my_lp_path = driver.generate_mps_files()
 
-# my_lp_path = "D:\\boucle\\one_node_v7\\output\\20191127-1225eco\\lp"
-# launching optimization
-
-driver.launch_optimization(my_lp_path, config.BENDERS_MPI)
+driver.launch_optimization(my_lp_path, config.BENDERS_SEQUENTIAL)
 driver.launch_optimization(my_lp_path, config.MERGE_MPS)
