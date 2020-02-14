@@ -6,7 +6,7 @@ std::vector<std::vector<std::string> > Candidates::MPS_LIST = {
 };
 
 std::vector<std::tuple<int, int, int> > Candidates::intercos_map = {
-//#include "interco.txt"
+	//#include "interco.txt"
 };
 
 //std::vector<std::vector<std::string>> Candidates::candidates_map = {
@@ -22,14 +22,16 @@ std::set<std::string> Candidates::str_fields = std::set<std::string>({
 	"link",
 	"linkor",
 	"linkex",
-	"link-profile"
+	"link-profile",
+	"already-installed-link-profile"
 	});
 
 std::set<std::string> Candidates::dbl_fields = std::set<std::string>({
 	"annual-cost-per-mw",
 	"max-investment",
 	"unit-size",
-	"max-units"
+	"max-units",
+	"already-installed-capacity"
 	});
 
 std::vector<std::string> Candidates::area_names = {
@@ -38,29 +40,26 @@ std::vector<std::string> Candidates::area_names = {
 
 
 
-double Candidate::profile(size_t i, std::string const & study_path) {
+double Candidate::profile(size_t i, std::string const & study_path, bool is_direct) {
 	if (_profile.empty()) {
 		if (has("link-profile")) {
 			std::string const file_name = str("link-profile");
 			std::string const profile_path(study_path + PATH_SEPARATOR + "user" + PATH_SEPARATOR + "expansion" + PATH_SEPARATOR + "capa" + PATH_SEPARATOR + file_name);
-			std::ifstream infile(profile_path.c_str());
-			if (!infile.good()) {
-				std::cout << "unable to open : " << profile_path << std::endl;
-			}
-			_profile.reserve(8760);
-			double value;
-			while (infile >> value) {
-				_profile.push_back(value);
-			}
-			infile.close();
+			_profile.read(profile_path);
 		}
 	}
-	if (!_profile.empty()) {
-		return _profile[i];
+	return _profile.get(i, is_direct);
+}
+
+double Candidate::already_installed_profile(size_t i, std::string const & study_path, bool is_direct) {
+	if (_already_installed_profile.empty()) {
+		if (has("already-installed-link-profile")) {
+			std::string const file_name = str("already-installed-link-profile");
+			std::string const profile_path(study_path + PATH_SEPARATOR + "user" + PATH_SEPARATOR + "expansion" + PATH_SEPARATOR + "capa" + PATH_SEPARATOR + file_name);
+			_already_installed_profile.read(profile_path);
+		}
 	}
-	else {
-		return 1.0;
-	}
+	return _already_installed_profile.get(i, is_direct);
 }
 
 double Candidate::obj()const {
@@ -77,11 +76,38 @@ double Candidate::ub() const {
 		return it->second;
 	}
 	else {
-		return _dbl.find("unit-size")->second*_dbl.find("max-units")->second;
+		return unit_size()*max_unit();
+	}
+}
+
+bool Candidate::has_already_installed_capacity() const {
+	return _dbl.find("already-installed-capacity") != _dbl.end();
+}
+
+bool Candidate::has_already_installed_link_profile() const {
+	return _str.find("already-installed-link-profile") != _str.end();
+}
+double Candidate::already_installed_capacity() const {
+	auto it = _dbl.find("already-installed-capacity");
+	if (it != _dbl.end()) {
+		return it->second;
+	}
+	else {
+		return 0;
 	}
 }
 
 
+double Candidate::unit_size() const {
+	return _dbl.find("unit-size")->second;
+}
+double Candidate::max_unit() const {
+	return _dbl.find("max-units")->second;
+}
+
+bool Candidate::is_integer()const {
+	return _dbl.find("unit-size") != _dbl.end();
+}
 
 /*!
  *  \brief Constructor
@@ -131,8 +157,8 @@ void Candidates::getListOfIntercoCandidates(map<std::pair<std::string, std::stri
  * \return void
  */
 void Candidates::readCstrfiles(std::string const filePath,
-						      std::list<std::string> & cstrList,
-							  size_t & sizeCstrList) {
+	std::list<std::string> & cstrList,
+	size_t & sizeCstrList) {
 	std::string line;
 	std::ifstream file(filePath.c_str());
 	if (!file.good()) {
@@ -171,11 +197,11 @@ void Candidates::readCstrfiles(std::string const filePath,
  * \return void
  */
 void Candidates::readVarfiles(std::string const filePath,
-						      std::list<std::string> & varList,
-							  size_t & sizeVarList,
-							  std::map<int, std::vector<int> > & interco_data ,
-							  std::map<std::vector<int>, int> & interco_id,
-							  map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex) {
+	std::list<std::string> & varList,
+	size_t & sizeVarList,
+	std::map<int, std::vector<int> > & interco_data,
+	std::map<std::vector<int>, int> & interco_id,
+	map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex) {
 	std::string line;
 	std::ifstream file(filePath.c_str());
 	if (!file.good()) {
@@ -246,16 +272,16 @@ void Candidates::readVarfiles(std::string const filePath,
  * \return void
  */
 void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
-											   std::list<std::string> var,
-											   size_t vsize,
-											   std::list<std::string> cstr,
-											   size_t csize,
-											   std::map<int, std::vector<int> > interco_data,
-											   std::map<std::vector<int>, int> interco_id,
-											   std::map< std::pair<std::string, std::string>, int> & couplings,
-											   map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex,
-											   std::string study_path,
-											   std::string const lp_mps_name) {
+	std::list<std::string> var,
+	size_t vsize,
+	std::list<std::string> cstr,
+	size_t csize,
+	std::map<int, std::vector<int> > interco_data,
+	std::map<std::vector<int>, int> interco_id,
+	std::map< std::pair<std::string, std::string>, int> & couplings,
+	map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex,
+	std::string study_path,
+	std::string const lp_mps_name) {
 	XPRSprob xpr = NULL;
 	XPRScreateprob(&xpr);
 	XPRSsetintcontrol(xpr, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_NO_OUTPUT);
@@ -290,7 +316,7 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 	}
 	status = XPRSaddnames(xpr, 2, vnames.data(), 0, ncols - 1);
 	if (status) {
-		std::cout << "XPRSaddnames error l."<<__LINE__ << std::endl;
+		std::cout << "XPRSaddnames error l." << __LINE__ << std::endl;
 		std::exit(0);
 	}
 #endif
@@ -330,7 +356,7 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 		int pays = interco.first[0];
 		//buffer << "INVEST_INTERCO_" << interco_i;
 		buffer << id_name.find(interco_i)->second;
-		
+
 #ifdef __ADD_NAMES__
 		status = XPRSaddnames(xpr, 2, buffer.str().c_str(), ncols + interco.second, ncols + interco.second);
 		if (status) {
@@ -355,22 +381,23 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 		std::string const & paysex(Candidates::area_names[std::get<2>(intercos_map[kvp.second[1]])]);
 
 		Candidate & candidate(*(key_paysor_paysex.find({ paysor, paysex })->second));
-		// p[t] - alpha.pMax <= 0
+		// p[t] - alpha.pMax - alpha0.pMax0 <= 0
+		double already_installed_capacity( candidate.already_installed_capacity());
 		rstart.push_back(dmatval.size());
-		rhs.push_back(0);
+		rhs.push_back(already_installed_capacity*candidate.already_installed_profile(kvp.second[2], study_path, true));
 		rowtype.push_back('L');
 		colind.push_back(i_interco_p);
 		dmatval.push_back(1);
 		colind.push_back(ncols + i_interco_pmax);
-		dmatval.push_back(-candidate.profile(kvp.second[2], study_path));
-		// p[t] + alpha.pMax >= 0
+		dmatval.push_back(-candidate.profile(kvp.second[2], study_path, true));
+		// p[t] + alpha.pMax + beta0.pMax0 >= 0
 		rstart.push_back(dmatval.size());
-		rhs.push_back(0);
+		rhs.push_back(already_installed_capacity*candidate.already_installed_profile(kvp.second[2], study_path, false));
 		rowtype.push_back('G');
 		colind.push_back(i_interco_p);
 		dmatval.push_back(1);
 		colind.push_back(ncols + i_interco_pmax);
-		dmatval.push_back(candidate.profile(kvp.second[2], study_path));
+		dmatval.push_back(candidate.profile(kvp.second[2], study_path, false));
 	}
 	int n_row_interco(rowtype.size());
 	int n_coeff_interco(dmatval.size());
@@ -383,7 +410,7 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 
 	XPRSwriteprob(xpr, lp_mps_name.c_str(), "");
 	XPRSdestroyprob(xpr);
-	std::cout << "lp_name : " << lp_mps_name <<" done" << std::endl;
+	std::cout << "lp_name : " << lp_mps_name << " done" << std::endl;
 }
 
 
@@ -397,15 +424,13 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
  * \return void
  */
 void Candidates::treat(std::string const & root,
-					   std::vector<std::string> const & mps,
-					   std::map< std::pair<std::string, std::string>, int> & couplings) {
+	std::vector<std::string> const & mps,
+	std::map< std::pair<std::string, std::string>, int> & couplings) {
 
 	std::map<std::pair<std::string, std::string>, Candidate *> key_paysor_paysex;
 	std::string const study_path = root + PATH_SEPARATOR + ".." + PATH_SEPARATOR + "..";
 
 	getListOfIntercoCandidates(key_paysor_paysex);
-
-	;
 
 	// get path of file problem***.mps, variable***.txt and constraints***.txt
 	std::string const mps_name(root + PATH_SEPARATOR + mps[0]);
@@ -460,47 +485,48 @@ void Candidates::treatloop(std::string const & root, std::map< std::pair<std::st
  */
 void Candidates::getCandidatesFromFile(std::string  const & dataPath) {
 	INIReader reader(dataPath.c_str());
-		std::stringstream ss;
-		std::set<std::string> sections = reader.Sections();
-		for (auto const & candidateName : sections) {
-			std::cout << "-------------------------------------------" << std::endl;
-			for (auto const & str : Candidates::str_fields) {
-				std::string val = reader.Get(candidateName, str, "NA");
-				if (val != "NA") {
-					std::cout << candidateName << " : " << str << " = " << val << std::endl;
-					if (str == "link") {
-						size_t i = val.find(" - ");
-						if (i != std::string::npos) {
-							std::string s1 = val.substr(0, i);
-							std::string s2 = val.substr(i+3, val.size());
-							std::cout << s1 << " and " << s2 << std::endl;
-							(*this)[candidateName]._str["linkor"] = s1;
-							(*this)[candidateName]._str["linkex"] = s2;							
-						}
-					}
-					else {
-						(*this)[candidateName]._str[str] = val;
+	std::stringstream ss;
+	std::set<std::string> sections = reader.Sections();
+	for (auto const & candidateName : sections) {
+		std::cout << "-------------------------------------------" << std::endl;
+		for (auto const & str : Candidates::str_fields) {
+			std::string val = reader.Get(candidateName, str, "NA");
+			if (val != "NA") {
+				std::cout << candidateName << " : " << str << " = " << val << std::endl;
+				if (str == "link") {
+					size_t i = val.find(" - ");
+					if (i != std::string::npos) {
+						std::string s1 = val.substr(0, i);
+						std::string s2 = val.substr(i + 3, val.size());
+						std::cout << s1 << " and " << s2 << std::endl;
+						(*this)[candidateName]._str["linkor"] = s1;
+						(*this)[candidateName]._str["linkex"] = s2;
 					}
 				}
-			}
-			for (auto const & str : Candidates::dbl_fields) {
-				std::string val = reader.Get(candidateName, str, "NA");
-				if (val != "NA") {
-					std::stringstream buffer(val);
-					double d_val(0);
-					buffer >> d_val;
-					(*this)[candidateName]._dbl[str] = d_val;
+				else {
+					(*this)[candidateName]._str[str] = val;
 				}
-			}
-
-			auto it = or_ex_id.find({ (*this)[candidateName]._str["linkor"], (*this)[candidateName]._str["linkex"] });
-			if (it == or_ex_id.end()) {
-				std::cout << "cannot link candidate to interco id" << std::endl;
-			}
-			else {
-				id_name[it->second] = (*this)[candidateName]._str["name"];
-				std::cout << "index is " << it->second << " and name is " << id_name[it->second] << std::endl;
 			}
 		}
-		std::cout << "-------------------------------------------" << std::endl;
+		for (auto const & str : Candidates::dbl_fields) {
+			std::string val = reader.Get(candidateName, str, "NA");
+			if (val != "NA") {
+				//std::cout <<"|||  "<< str << " is " << val << std::endl;
+				std::stringstream buffer(val);
+				double d_val(0);
+				buffer >> d_val;
+				(*this)[candidateName]._dbl[str] = d_val;
+			}
+		}
+
+		auto it = or_ex_id.find({ (*this)[candidateName]._str["linkor"], (*this)[candidateName]._str["linkex"] });
+		if (it == or_ex_id.end()) {
+			std::cout << "cannot link candidate to interco id" << std::endl;
+		}
+		else {
+			id_name[it->second] = (*this)[candidateName]._str["name"];
+			std::cout << "index is " << it->second << " and name is " << id_name[it->second] << std::endl;
+		}
+	}
+	std::cout << "-------------------------------------------" << std::endl;
 }

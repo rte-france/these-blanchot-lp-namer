@@ -3,6 +3,54 @@
 #include "common.hpp"
 
 
+struct LinkProfile {
+public:
+	LinkProfile() {
+
+	}
+	bool empty() const{
+		return _column1.empty();
+	}
+	void read(std::string const & file_path) {
+		std::ifstream infile(file_path.c_str());
+		if (!infile.good()) {
+			std::cout << "unable to open : " << file_path << std::endl;
+		}
+		_column1.reserve(8760);
+		double value;
+		std::string line;
+		for (size_t line_id(0); line_id < 8760; ++line_id) {
+			if (std::getline(infile, line)) {
+				std::stringstream buffer(line);
+				buffer >> value;
+				_column1.push_back(value);
+				if (buffer >> value) {
+					_column2.reserve(8760);
+					_column2.push_back(value);
+				}
+			}
+			else {
+				std::cout << "error not enough line in link-profile " << file_path << std::endl;
+			}
+		}
+		infile.close();
+	}
+
+	std::vector<double> _column1;
+	std::vector<double> _column2;
+
+	double get(size_t i, bool is_direct) {
+		if (_column1.empty() && _column2.empty()) {
+			return 1.0;
+		}else if (!is_direct && !_column2.empty()) {
+			return _column2[i];
+		}
+		else {
+			return _column1[i];
+		}		
+	}
+};
+
 /*!
  *  \struct Candidate
  *  \brief Candidate structure
@@ -12,7 +60,8 @@ struct Candidate {
 	std::map<std::string, std::string> _str; /*!<  map of string , string associated type of link (origin, destination) and the country */
 	std::map<std::string, double> _dbl;
 
-	std::vector<double> _profile;
+	LinkProfile _profile;
+	LinkProfile _already_installed_profile;
 
 	int _id;
 
@@ -52,11 +101,23 @@ struct Candidate {
 		return it != _str.end();
 	}
 
-	double profile(size_t i, std::string const & study_path);
+	double profile(size_t i, std::string const & study_path, bool is_direct);
+	double already_installed_profile(size_t i, std::string const & study_path, bool is_direct);
 
 	double obj()const;
 	double lb()const;
 	double ub()const;
+
+	double unit_size() const;
+	double max_unit() const;
+
+	bool is_integer()const;
+
+	bool has_already_installed_capacity() const;
+	double already_installed_capacity() const;
+
+	bool has_already_installed_link_profile() const;
+	
 };
 
 

@@ -15,13 +15,13 @@
 
 
 
-/**
- * \fn string get_name(string const & path)
- * \brief Get the correct path from a string
- *
- * \param path String corresponding to a path with mistakes
- * \return The correct path
- */
+ /**
+  * \fn string get_name(string const & path)
+  * \brief Get the correct path from a string
+  *
+  * \param path String corresponding to a path with mistakes
+  * \return The correct path
+  */
 std::string get_name(std::string const & path) {
 	int last_sep(0);
 	for (int i(0); i < path.size(); ++i) {
@@ -130,68 +130,116 @@ void initializedCandidates(std::string rootPath, Candidates & candidates) {
  */
 void masterGeneration(std::string rootPath, Candidates candidates, std::map< std::pair<std::string, std::string>, int> couplings) {
 	XPRSprob master;
-		XPRScreateprob(&master);
-		XPRSsetcbmessage(master, optimizermsg, NULL);
-		XPRSsetintcontrol(master, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_FULL_OUTPUT);
-		XPRSloadlp(master, "master", 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-		int status;
+	XPRScreateprob(&master);
+	XPRSsetcbmessage(master, optimizermsg, NULL);
+	XPRSsetintcontrol(master, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_FULL_OUTPUT);
+	XPRSloadlp(master, "master", 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	int status;
 
-		int ninterco = candidates.size();
-		std::vector<int> mstart(ninterco + 1, 0);
-		std::vector<double> obj_interco(ninterco, 0);
-		std::vector<double> lb_interco(ninterco, +XPRS_MINUSINFINITY);
-		std::vector<double> ub_interco(ninterco, +XPRS_PLUSINFINITY);
-		std::vector<std::string> interco_names(ninterco);
-		int i(0);
-		for (auto const & interco : candidates) {
-			obj_interco[i] = interco.second.obj();
-			lb_interco[i] = interco.second.lb();
-			ub_interco[i] = interco.second.ub();
-			int interco_id = Candidates::or_ex_id.find(std::make_tuple(interco.second.str("linkor") , interco.second.str("linkex")))->second;
-			std::stringstream buffer;
-			//buffer << "INVEST_INTERCO_" << interco_id;
-			buffer << Candidates::id_name.find(interco_id)->second;
-			interco_names[i] = buffer.str();
-			++i;
+	int ninterco = candidates.size();
+	std::vector<int> mstart(ninterco + 1, 0);
+	std::vector<double> obj_interco(ninterco, 0);
+	std::vector<double> lb_interco(ninterco, +XPRS_MINUSINFINITY);
+	std::vector<double> ub_interco(ninterco, +XPRS_PLUSINFINITY);
+	std::vector<std::string> interco_names(ninterco);
+	
+	int i(0);
+	std::vector<std::string> pallier_names;
+	std::vector<int> pallier;
+	std::vector<int> pallier_i;
+	std::vector<double> unit_size;
+	std::vector<double> max_unit;
+
+	for (auto const & interco : candidates) {
+		obj_interco[i] = interco.second.obj();
+		lb_interco[i] = interco.second.lb();
+		ub_interco[i] = interco.second.ub();
+		int interco_id = Candidates::or_ex_id.find(std::make_tuple(interco.second.str("linkor"), interco.second.str("linkex")))->second;
+		std::stringstream buffer;
+		//buffer << "INVEST_INTERCO_" << interco_id;
+		buffer << Candidates::id_name.find(interco_id)->second;
+		interco_names[i] = buffer.str();
+		
+		if (interco.second.is_integer()) {
+			pallier.push_back(i);
+			pallier_i.push_back(ninterco+ pallier_i.size());
+			unit_size.push_back(interco.second.unit_size());
+			max_unit.push_back(interco.second.max_unit());
+			std::cout << interco.second.max_unit() << std::endl;
 		}
-		status = XPRSaddcols(master, ninterco, 0, obj_interco.data(), mstart.data(), NULL, NULL, lb_interco.data(), ub_interco.data());
+		++i;
+	}
+	status = XPRSaddcols(master, ninterco, 0, obj_interco.data(), mstart.data(), NULL, NULL, lb_interco.data(), ub_interco.data());
+	if (status) {
+		std::cout << "master XPRSaddcols error" << std::endl;
+		std::exit(0);
+	}
+	// integer constraints
+	int n_integer = pallier.size();
+	if(n_integer>0){		
+		std::vector<double> zeros(n_integer, 0);
+		std::vector<char> integer_type(n_integer, 'I');
+		XPRSaddcols(master, n_integer, 0, zeros.data(), NULL, NULL, NULL, zeros.data(), max_unit.data());
+		XPRSchgcoltype(master, n_integer, pallier_i.data(), integer_type.data());
+		std::vector<double> dmatval;
+		std::vector<int> colind;
+		std::vector<char> rowtype;
+		std::vector<double> rhs;
+		std::vector<int> rstart;
+		for (i = 0; i < n_integer; ++i) {
+			// pMax  - n max_unit = 0 <= 0
+			rstart.push_back(dmatval.size());
+			rhs.push_back(0);
+			rowtype.push_back('E');
+			colind.push_back(pallier[i]);
+			dmatval.push_back(1);
+			colind.push_back(pallier_i[i]);
+			dmatval.push_back(-unit_size[i]);
+		}
+		int n_row_interco(rowtype.size());
+		int n_coeff_interco(dmatval.size());
+		rstart.push_back(dmatval.size());
+		status = XPRSaddrows(master, n_row_interco, n_coeff_interco, rowtype.data(), rhs.data(), NULL, rstart.data(), colind.data(), dmatval.data());
 		if (status) {
-			std::cout << "master XPRSaddcols error" << std::endl;
+			std::cout << "XPRSaddrows error l." << __LINE__ << std::endl;
 			std::exit(0);
 		}
-		i = 0;
-		for (auto const & name : interco_names) {
-			status = XPRSaddnames(master, 2, interco_names[i].c_str(), i, i);
-			if (status) {
-				std::cout << "master XPRSaddname error" << std::endl;
-				std::exit(0);
-			}
-			++i;
+
+	}
+
+	i = 0;
+	for (auto const & name : interco_names) {
+		status = XPRSaddnames(master, 2, interco_names[i].c_str(), i, i);
+		if (status) {
+			std::cout << "master XPRSaddname error" << std::endl;
+			std::exit(0);
 		}
-		std::string const lp_name = "master";
-		XPRSwriteprob(master, (rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".lp").c_str(), "l");
-		XPRSwriteprob(master, (rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".mps").c_str(), "");
-		XPRSdestroyprob(master);
-		XPRSfree();
-		std::map<std::string, std::map<std::string, int> > output;
-		for (auto const & coupling : couplings) {
-			output[get_name(coupling.first.second)][coupling.first.first] = coupling.second;
+		++i;
+	}
+	std::string const lp_name = "master";
+	XPRSwriteprob(master, (rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".lp").c_str(), "l");
+	XPRSwriteprob(master, (rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + lp_name + ".mps").c_str(), "");
+	XPRSdestroyprob(master);
+	XPRSfree();
+	std::map<std::string, std::map<std::string, int> > output;
+	for (auto const & coupling : couplings) {
+		output[get_name(coupling.first.second)][coupling.first.first] = coupling.second;
+	}
+	i = 0;
+	for (auto const & name : interco_names) {
+		output["master"][name] = i;
+		++i;
+	}
+	std::ofstream coupling_file((rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + "structure.txt").c_str());
+	for (auto const & mps : output) {
+		for (auto const & pmax : mps.second) {
+			coupling_file << std::setw(50) << mps.first;
+			coupling_file << std::setw(50) << pmax.first;
+			coupling_file << std::setw(10) << pmax.second;
+			coupling_file << std::endl;
 		}
-		i = 0;
-		for (auto const & name : interco_names) {
-			output["master"][name] = i;
-			++i;
-		}
-		std::ofstream coupling_file((rootPath + PATH_SEPARATOR + "lp" + PATH_SEPARATOR + "structure.txt").c_str());
-		for (auto const & mps : output) {
-			for (auto const & pmax : mps.second) {
-				coupling_file << std::setw(50) << mps.first;
-				coupling_file << std::setw(50) << pmax.first;
-				coupling_file << std::setw(10) << pmax.second;
-				coupling_file << std::endl;
-			}
-		}
-		coupling_file.close();
+	}
+	coupling_file.close();
 }
 
 
