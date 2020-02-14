@@ -128,7 +128,7 @@ void initializedCandidates(std::string rootPath, Candidates & candidates) {
  * \param couplings map pairs and integer which give the correspondence between optim variable and antares variable
  * \return void
  */
-void masterGeneration(std::string rootPath, Candidates candidates, std::map< std::pair<std::string, std::string>, int> couplings) {
+void masterGeneration(std::string rootPath, Candidates candidates, std::map< std::pair<std::string, std::string>, int> couplings, std::string const &master_formulation) {
 	XPRSprob master;
 	XPRScreateprob(&master);
 	XPRSsetcbmessage(master, optimizermsg, NULL);
@@ -176,7 +176,7 @@ void masterGeneration(std::string rootPath, Candidates candidates, std::map< std
 	}
 	// integer constraints
 	int n_integer = pallier.size();
-	if(n_integer>0){		
+	if(n_integer>0 && master_formulation=="integer"){
 		std::vector<double> zeros(n_integer, 0);
 		std::vector<char> integer_type(n_integer, 'I');
 		XPRSaddcols(master, n_integer, 0, zeros.data(), NULL, NULL, NULL, zeros.data(), max_unit.data());
@@ -254,8 +254,8 @@ void masterGeneration(std::string rootPath, Candidates candidates, std::map< std
  */
 int main(int argc, char** argv) {
 	// Test if there are enough arguments
-	if (argc < 2) {
-		std::cout << "usage: <exe> <Xpansion study output>" << std::endl;
+	if (argc < 3) {
+		std::cout << "usage: <exe> <Xpansion study output> <relaxed or integer>" << std::endl;
 		std::exit(0);
 	}
 
@@ -263,12 +263,12 @@ int main(int argc, char** argv) {
 	std::string const root(argv[1]);
 	Candidates candidates;
 	initializedCandidates(root, candidates);
-
+	std::string const master_formulation(argv[2]);
 
 	std::map< std::pair<std::string, std::string>, int> couplings;
 	XPRSinit("");
 	candidates.treatloop(root, couplings);
-	masterGeneration(root, candidates, couplings);
+	masterGeneration(root, candidates, couplings, master_formulation);
 
 	return 0;
 }

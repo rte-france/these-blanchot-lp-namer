@@ -167,6 +167,24 @@ class XpansionDriver:
             return uc_type == self.config.EXPANSION_ACCURATE
         assert false
 
+    def is_relaxed(self):
+        with open(self.settings(), 'r') as file:
+            options = dict(
+                {line.strip().split('=')[0].strip(): line.strip().split('=')[1].strip() for line in file.readlines()})
+            relaxation_type = options['master']
+            assert relaxation_type in ['integer', 'relaxed', 'full_integer']
+            return relaxation_type == 'relaxed'
+        assert false
+
+    def optimality_gap(self):
+        with open(self.settings(), 'r') as file:
+            options = dict(
+                {line.strip().split('=')[0].strip(): line.strip().split('=')[1].strip() for line in file.readlines()})
+            optimality_gap_str = options['optimality_gap']
+            assert not('%' in  optimality_gap_str)
+            return float(optimality_gap_str) if optimality_gap_str != '-Inf' else 0
+        assert false
+
     def nb_years(self):
         ini_file = configparser.ConfigParser()
         ini_file.read(self.general_data())
@@ -238,11 +256,12 @@ class XpansionDriver:
         shutil.copy(interco_files[0], os.path.join(output_path, 'interco.txt'))
         lp_path = os.path.join(output_path, 'lp')
         os.makedirs(lp_path)
+        is_relaxed = 'relaxed' if self.is_relaxed() else 'integer'
         with open(self.exe_path(self.config.LP_NAMER) + '.log', 'w') as output_file:
-            subprocess.call([self.exe_path(self.config.LP_NAMER), output_path], shell=True,
+            subprocess.call([self.exe_path(self.config.LP_NAMER), output_path, is_relaxed], shell=True,
                             stdout=output_file,
                             stderr=output_file)
-        self.set_slave_weight(output_path)
+        self.set_options(output_path)
         return lp_path
 
     def launch_optimization(self, lp_path, solver):
@@ -257,11 +276,11 @@ class XpansionDriver:
                             stderr=output_file)
         os.chdir(old_cwd)
 
-    def set_slave_weight(self, output_path):
+    def set_options(self, output_path):
         # computing the weight of slaves
         options_values = self.config.options_default
         options_values["SLAVE_WEIGHT_VALUE"] = str(driver.nb_years())
-        options_values["GAP"] = 1
+        options_values["GAP"] = self.optimality_gap()
         print('Number of years is {}, setting SLAVE_WEIGHT_VALUE to {} '.format(driver.nb_years(),
                                                                                 options_values["SLAVE_WEIGHT_VALUE"]))
         # generate options file for the solver
@@ -286,7 +305,8 @@ config = XpansionConfig()
 driver = XpansionDriver(config)
 driver.check_candidates()
 
-my_lp_path = driver.generate_mps_files()
-
+# my_lp_path = driver.generate_mps_files()
+my_lp_path = 'D:\\repo\\these-blanchot-lp-namer\\test_case\\output\\20200214-1622eco\\lp'
+driver.set_options('D:\\repo\\these-blanchot-lp-namer\\test_case\\output\\20200214-1622eco')
 driver.launch_optimization(my_lp_path, config.BENDERS_SEQUENTIAL)
 driver.launch_optimization(my_lp_path, config.MERGE_MPS)
