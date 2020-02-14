@@ -309,4 +309,4 @@ my_lp_path = driver.generate_mps_files()
 # my_lp_path = 'D:\\repo\\these-blanchot-lp-namer\\test_case\\output\\20200214-1622eco\\lp'
 # driver.set_options('D:\\repo\\these-blanchot-lp-namer\\test_case\\output\\20200214-1622eco')
 driver.launch_optimization(my_lp_path, config.BENDERS_SEQUENTIAL)
-driver.launch_optimization(my_lp_path, config.MERGE_MPS)
+# driver.launch_optimization(my_lp_path, config.MERGE_MPS)
