@@ -162,7 +162,8 @@ void masterGeneration(std::string rootPath, Candidates candidates, std::map< std
 		
 		if (interco.second.is_integer()) {
 			pallier.push_back(i);
-			pallier_i.push_back(ninterco+ pallier_i.size());
+			int new_id = ninterco + pallier_i.size();
+			pallier_i.push_back(new_id);
 			unit_size.push_back(interco.second.unit_size());
 			max_unit.push_back(interco.second.max_unit());
 			std::cout << interco.second.max_unit() << std::endl;

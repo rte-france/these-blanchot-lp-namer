@@ -241,7 +241,18 @@ void Candidates::readVarfiles(std::string const filePath,
 			if (key_paysor_paysex.find({ paysor, paysex }) != key_paysor_paysex.end()) {
 				interco_data[id] = { pays, interco, pdt };
 				if (interco_id.find({ pays, interco }) == interco_id.end()) {
-					interco_id[{pays, interco }] = interco_id.size();
+					//std::cout << "interco_id.size() is : " << std::setw(4) << interco_id.size() << std::endl;
+					int new_id = interco_id.size();
+					interco_id[{pays, interco }] = new_id;
+
+					//std::cout << "interco_id.size() is : " << std::setw(4) << interco_id.size() << std::endl;
+					//for (auto const& kvp : interco_id) {
+					//	std::cout << std::setw(4) << kvp.first[0];
+					//	std::cout << std::setw(4) << kvp.first[1];
+					//	std::cout << std::setw(4) << kvp.second;
+					//	std::cout << std::endl;
+					//}
+
 				}
 			}
 		}
@@ -285,6 +296,7 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 	XPRSprob xpr = NULL;
 	XPRScreateprob(&xpr);
 	XPRSsetintcontrol(xpr, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_NO_OUTPUT);
+	//XPRSsetintcontrol(xpr, XPRS_OUTPUTLOG, XPRS_OUTPUTLOG_FULL_OUTPUT);
 	XPRSsetcbmessage(xpr, optimizermsg, NULL);
 	XPRSreadprob(xpr, mps_name.c_str(), "");
 
@@ -339,6 +351,7 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 	XPRSchgbounds(xpr, ninterco_pdt, indexes.data(), ub_char.data(), posinf.data());
 	// create pMax variable
 	int ninterco = interco_id.size();
+	//std::cout << "ninterco : " << ninterco << std::endl;
 	std::vector<int> mstart(ninterco + 1, 0);
 	std::vector<double> obj_interco(ninterco, 0);
 	std::vector<double> lb_interco(ninterco, +XPRS_MINUSINFINITY);
@@ -365,6 +378,9 @@ void Candidates::createMpsFileAndFillCouplings(std::string const mps_name,
 		}
 #endif
 		couplings[{buffer.str(), mps_name}] = interco.second + ncols;
+		//std::cout << "ncols " << ncols << std::endl;
+		//std::cout << "interco.second " << interco.second << std::endl;
+		//std::cout << "buffer " << buffer.str() << std::endl;
 	}
 
 	std::vector<double> dmatval;
